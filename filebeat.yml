@@ -1,0 +1,41 @@
+filebeat.inputs:
+  - type: container
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+
+      - decode_json_fields:
+          fields: ["message"]
+          target: ""
+          overwrite_keys: false
+          when:
+            has_fields: ["message"]
+
+    multiline:
+      pattern: '^[[:space:]]'
+      match: after
+
+processors:
+  - drop_event:
+      when:
+        or:
+          - equals:
+              docker.container.image: "elastic/elasticsearch:8.10.0"
+          - equals:
+              docker.container.image: "docker.elastic.co/kibana/kibana:8.10.0"
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+
+setup.kibana:
+  host: "http://kibana:5601"
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644
